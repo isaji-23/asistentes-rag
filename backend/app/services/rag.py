@@ -14,6 +14,7 @@ Flujo:
 
 import logging
 import uuid
+from collections.abc import Generator
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -206,3 +207,127 @@ def _update_conversation_timestamp(db: Session, conversation_id: uuid.UUID) -> N
     db.query(Conversation).filter(Conversation.id == conversation_id).update(
         {"updated_at": func.now()}, synchronize_session=False
     )
+
+
+def stream_rag_pipeline(
+    db: Session,
+    assistant_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    user_content: str,
+) -> Generator[str, None, None]:
+    """
+    Igual que run_rag_pipeline pero yields eventos SSE en lugar de devolver
+    la respuesta completa. Persiste mensajes y citas al finalizar el stream.
+    """
+    import json
+
+    # Pasos 1-5 identicos a run_rag_pipeline
+    assistant = db.get(Assistant, assistant_id)
+    if assistant is None:
+        yield f"event: error\ndata: Asistente no encontrado\n\n"
+        return
+
+    history_rows = list(reversed(
+        db.query(Message)
+        .filter(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.desc())
+        .limit(HISTORY_WINDOW)
+        .all()
+    ))
+
+    query_vector = embed_text(user_content)
+    raw_chunks = hybrid_search(
+        query_text=user_content,
+        query_vector=query_vector,
+        assistant_id=str(assistant_id),
+        top=settings.retrieval_top_k,
+    )
+    chunks = [
+        c for c in raw_chunks
+        if (c.get("reranker_score") or 0) >= settings.reranker_min_score
+    ]
+
+    # Persiste mensaje del usuario
+    user_msg = Message(conversation_id=conversation_id, role="user", content=user_content)
+    db.add(user_msg)
+    db.flush()
+
+    # Sin contexto: respuesta hardcoded, sin llamar al LLM
+    if not chunks:
+        assistant_msg = Message(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=NO_CONTEXT_REPLY,
+        )
+        db.add(assistant_msg)
+        _update_conversation_timestamp(db, conversation_id)
+        db.commit()
+        yield f"event: token\ndata: {NO_CONTEXT_REPLY}\n\n"
+        yield f"event: citations\ndata: []\n\n"
+        yield f"event: done\ndata: {{}}\n\n"
+        return
+
+    # Construccion del prompt
+    system_prompt = _build_system_prompt(assistant.instructions)
+    context_block = _build_context_block(chunks)
+    messages_for_llm = [{"role": "system", "content": system_prompt}]
+    for msg in history_rows:
+        messages_for_llm.append({"role": msg.role, "content": msg.content})
+    messages_for_llm.append({
+        "role": "user",
+        "content": f"{user_content}\n\n<context>\n{context_block}\n</context>",
+    })
+
+    # Llamada al LLM con stream=True
+    client = get_openai_client()
+    stream = client.chat.completions.create(
+        model=settings.azure_openai_llm_deployment,
+        messages=messages_for_llm,
+        temperature=0.2,
+        stream=True,
+    )
+
+    full_response = ""
+    for chunk_event in stream:
+        delta = chunk_event.choices[0].delta.content if chunk_event.choices else None
+        if delta:
+            full_response += delta
+            # Escapamos saltos de linea para que no rompan el formato SSE
+            escaped = delta.replace("\n", "\\n")
+            yield f"event: token\ndata: {escaped}\n\n"
+
+    # Persistencia una vez terminado el stream
+    assistant_msg = Message(
+        conversation_id=conversation_id,
+        role="assistant",
+        content=full_response,
+    )
+    db.add(assistant_msg)
+    db.flush()
+
+    citations = []
+    for c in chunks:
+        citation = MessageCitation(
+            message_id=assistant_msg.id,
+            document_id=uuid.UUID(c["document_id"]),
+            document_name=c["document_name"],
+            chunk_index=c["chunk_index"],
+            content_snippet=c["content"][:500],
+        )
+        db.add(citation)
+        citations.append(citation)
+
+    _update_conversation_timestamp(db, conversation_id)
+    db.commit()
+
+    citations_payload = json.dumps([
+        {
+            "document_id": str(c.document_id),
+            "document_name": c.document_name,
+            "chunk_index": c.chunk_index,
+            "content_snippet": c.content_snippet,
+        }
+        for c in citations
+    ])
+    yield f"event: citations\ndata: {citations_payload}\n\n"
+    yield f"event: done\ndata: {{}}\n\n"

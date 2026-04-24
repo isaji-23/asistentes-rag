@@ -1,5 +1,6 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,7 +15,7 @@ from app.schemas.chat import (
     MessageRead,
     CitationRead,
 )
-from app.services.rag import run_rag_pipeline
+from app.services.rag import run_rag_pipeline, stream_rag_pipeline
 from app.schemas.chat import MessageCreate
 
 router = APIRouter(tags=["chat"])
@@ -24,17 +25,22 @@ router = APIRouter(tags=["chat"])
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_assistant_or_404(assistant_id: uuid.UUID, db: Session) -> Assistant:
     assistant = db.get(Assistant, assistant_id)
     if not assistant:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asistente no encontrado.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Asistente no encontrado."
+        )
     return assistant
 
 
 def _get_conversation_or_404(conversation_id: uuid.UUID, db: Session) -> Conversation:
     conv = db.get(Conversation, conversation_id)
     if not conv:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversacion no encontrada.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Conversacion no encontrada."
+        )
     return conv
 
 
@@ -61,6 +67,7 @@ def _message_to_schema(msg: Message) -> MessageRead:
 # ---------------------------------------------------------------------------
 # Endpoints de conversaciones
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/assistants/{assistant_id}/conversations",
@@ -142,6 +149,7 @@ def delete_conversation(
 # Endpoint principal: enviar mensaje
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/conversations/{conversation_id}/messages",
     response_model=ChatResponse,
@@ -186,4 +194,30 @@ def send_message(
     return ChatResponse(
         user_message=_message_to_schema(user_msg),
         assistant_message=_message_to_schema(assistant_msg),
+    )
+
+
+@router.post("/conversations/{conversation_id}/messages/stream")
+def send_message_stream(
+    conversation_id: uuid.UUID,
+    body: MessageCreate,
+    db: Session = Depends(get_db),
+):
+    conv = _get_conversation_or_404(conversation_id, db)
+
+    if not body.content or not body.content.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El mensaje no puede estar vacio.",
+        )
+
+    return StreamingResponse(
+        stream_rag_pipeline(
+            db=db,
+            assistant_id=conv.assistant_id,
+            conversation_id=conversation_id,
+            user_content=body.content.strip(),
+        ),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no"},
     )
