@@ -1,0 +1,104 @@
+:root {
+  /* ─── Layout ─────────────────────────────────────────────── */
+  --bar-height: 64px;
+  --sidebar-left-w: 280px;
+  --sidebar-right-w: 300px;
+  --sidebar-collapsed-w: 0px;
+
+  /* ─── Color: Primary text ─────────────────────────────────── */
+  --color-black: #000000;
+  --color-near-black: #212121;
+  --color-deep-dark: #17171c;
+
+  /* ─── Color: Accent / interactive ───────────────────────────  */
+  --color-interaction-blue: #1863dc;
+  --color-ring-blue: rgba(76, 110, 230, 0.5);
+  --color-focus-purple: #9b60aa;
+
+  /* ─── Color: Surface / background ────────────────────────── */
+  --color-white: #ffffff;
+  --color-snow: #fafafa;
+  --color-lightest-gray: #f2f2f2;
+  --color-surface-sidebar: #f5f5f5;
+  --color-surface-bar: #f9f9f9;
+  --color-input-bg: #ffffff;
+
+  /* ─── Color: Neutrals ────────────────────────────────────── */
+  --color-muted-slate: #93939f;
+  --color-border-cool: #d9d9dd;
+  --color-border-light: #e5e7eb;
+
+  /* Semantic */
+  --color-danger: #b91c1c;
+  --color-danger-hover: #991b1b;
+  --color-blue-tint: #eff6ff;
+  --color-btn-solid-hover: #2a2a2a;
+
+  /* ─── Typography: Font families ─────────────────────────── */
+  --font-display: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-body: Inter, Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Courier New", Courier, monospace;
+
+  /* ─── Typography: Sizes ──────────────────────────────────── */
+  --text-xs: 0.75rem;   /* 12px */
+  --text-sm: 0.875rem;  /* 14px */
+  --text-base: 1rem;    /* 16px */
+  --text-lg: 1.125rem;  /* 18px */
+  --text-xl: 1.5rem;    /* 24px */
+  --text-2xl: 2rem;     /* 32px */
+  --text-3xl: 3rem;     /* 48px */
+
+  /* ─── Typography: Line heights ───────────────────────────── */
+  --leading-tight: 1.2;
+  --leading-normal: 1.4;
+  --leading-relaxed: 1.5;
+  --leading-loose: 1.71;
+
+  /* ─── Spacing ─────────────────────────────────────────────── */
+  --space-1: 2px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 28px;
+  --space-10: 32px;
+  --space-11: 40px;
+  --space-12: 56px;
+
+  /* ─── Border radius ──────────────────────────────────────── */
+  --radius-sharp: 6px;
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-signature: 6px;
+  --radius-pill: 9999px;
+
+  /* ─── Transitions ─────────────────────────────────────────── */
+  --transition-sidebar: grid-template-columns 200ms ease;
+  --transition-base: 150ms ease;
+
+  /* ─── Z-index ─────────────────────────────────────────────── */
+  --z-overlay: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+}
+
+[data-theme="dark"] {
+  --color-white:            #1a1a1a;
+  --color-snow:             #242424;
+  --color-lightest-gray:    #2e2e2e;
+  --color-surface-sidebar:  #141414;
+  --color-surface-bar:      #1f1f1f;
+  --color-black:            #ffffff;
+  --color-near-black:       #e4e4e4;
+  --color-deep-dark:        #f0f0f0;
+  --color-muted-slate:      #8a8a99;
+  --color-border-cool:      #3a3a3d;
+  --color-border-light:     #2a2a2e;
+  --color-blue-tint:        #1a2a45;
+  --color-input-bg:         #0d0d0d;
+  --color-btn-solid-hover:  #e0e0e0;
+}

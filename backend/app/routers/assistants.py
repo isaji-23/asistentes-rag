@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Assistant
+from app.models import Assistant, Document
 from app.schemas import (
     AssistantCreate,
     AssistantListItem,
@@ -99,21 +99,25 @@ def delete_assistant(assistant_id: uuid.UUID, db: Session = Depends(get_db)):
             detail="Asistente no encontrado",
         )
 
-    # Borrar chunks del indice
+    from app.services.azure_search import delete_assistant_chunks
+    from app.services import supabase_storage
+
+    # Borrar chunks del índice vectorial
     try:
-        from app.services.azure_search import delete_assistant_chunks
         delete_assistant_chunks(assistant_id)
     except Exception:
         pass
 
-    # Borrar ficheros del storage
-    try:
-        from app.services import supabase_storage
-        supabase_storage.delete_prefix(str(assistant_id))
-    except Exception:
-        pass
+    # Borrar ficheros del storage usando los paths exactos de cada documento
+    documents = db.query(Document).filter(Document.assistant_id == assistant_id).all()
+    for doc in documents:
+        if doc.storage_path:
+            try:
+                supabase_storage.delete_file(doc.storage_path)
+            except Exception:
+                pass
 
-    # Borrar de BBDD (cascade se lleva documentos, conversaciones y mensajes)
+    # Borrar de BBDD (cascade elimina documentos, conversaciones y mensajes)
     db.delete(assistant)
     db.commit()
     return None

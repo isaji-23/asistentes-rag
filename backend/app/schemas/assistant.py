@@ -9,7 +9,7 @@ class AssistantBase(BaseModel):
     """Campos comunes entre create y update."""
     name: str = Field(..., min_length=1, max_length=200)
     description: str | None = Field(None, max_length=2000)
-    instructions: str = Field(..., min_length=1, max_length=10000)
+    instructions: str = Field("Eres un asistente útil", max_length=10000)
 
 
 class AssistantCreate(AssistantBase):
@@ -21,7 +21,7 @@ class AssistantUpdate(BaseModel):
     """Payload para actualizar un asistente. Todos los campos son opcionales."""
     name: str | None = Field(None, min_length=1, max_length=200)
     description: str | None = Field(None, max_length=2000)
-    instructions: str | None = Field(None, min_length=1, max_length=10000)
+    instructions: str | None = Field(None, max_length=10000)
 
 
 class AssistantResponse(AssistantBase):

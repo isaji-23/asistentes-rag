@@ -58,6 +58,7 @@ def _message_to_schema(msg: Message) -> MessageRead:
                 document_name=c.document_name,
                 chunk_index=c.chunk_index,
                 content_snippet=c.content_snippet,
+                citation_number=c.citation_number,
             )
             for c in (msg.citations if hasattr(msg, "citations") else [])
         ],

@@ -36,6 +36,7 @@ class CitationRead(BaseModel):
     document_name: str
     chunk_index: int
     content_snippet: str
+    citation_number: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

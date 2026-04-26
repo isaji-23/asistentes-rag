@@ -1,8 +1,8 @@
 """Modelo ORM de las tablas messages y message_citations."""
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, func
+from sqlalchemy import String, Text, Integer, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,7 +26,9 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # user | assistant
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     conversation = relationship("Conversation", back_populates="messages")
@@ -59,5 +61,6 @@ class MessageCitation(Base):
     document_name: Mapped[str] = mapped_column(String(500), nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content_snippet: Mapped[str] = mapped_column(Text, nullable=False)
+    citation_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     message = relationship("Message", back_populates="citations")
